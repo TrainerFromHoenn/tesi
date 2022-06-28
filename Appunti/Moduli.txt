@@ -1,0 +1,16 @@
+I moduli sono collezioni di funzioni correlate fra loro, tipi, e classi di tipi. 
+Un programma Haskell è una collezione di moduli
+    Classici vantaggi dei moduli sono evidenti come in ogni linguaggio di programmazione:
+    - Scalabilità 
+    - Maneggiabilità del codice
+    - Divide et Impera
+
+Il modulo Prelude è quello importato di default.
+Sintassi per importare i moduli: import <module name> (Di solito in cima al file)
+
+- Si può anche importare nel terminale facendo ":m + Data.List Data.Map Data.Set" 
+- Se ho bisogno di un solo elenco di funzioni -> import Data.List (nub, sort)
+- Se voglio creare la mia versione di una funzione esistente nell'import -> import Data.List hiding (nub)
+- Se creo "import qualified Data.Map" posso specificare Data.Map.Filter per usare la funzione filter di Data.Map, mentre 
+    scrivendo "filter" uso quella di Prelude
+- per abbreviare il modulo si può rinominare "import qualified Data.Map as M"
