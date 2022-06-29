@@ -52,3 +52,12 @@ inizialiRicorsive = inits "MicheleBiena"
 
 -- PARTITION divide una lista in 2, elementi che danno True al predicato ed elementi che danno False
 dividiMaiuscole = partition (`elem` ['A' .. 'Z']) "MICHELEbienaEMOLTObello"
+
+-- FIND prende una lista e un predicato e restituisce il primo elemento che soddisfa il predicato
+-- l'elemento è wrappato nel valore "Maybe" (può assumere Just something o Nothing)
+
+trovaMaggiore = find (> 4) [1, 2, 3, 4, 5, 6]
+
+-- ELEMINDEX è come elem ma non restituisce il valore booleano, ma la posizione dell'elemento
+-- ELEMINDICES trova multiple occorrenze
+-- FINDINDEX restituisce l'indice del risultato di FIND
