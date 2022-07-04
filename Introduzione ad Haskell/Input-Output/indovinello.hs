@@ -1,4 +1,4 @@
-import Control.Monad (when)
+import Control.Monad
 import System.Random
 
 main = do
@@ -10,7 +10,7 @@ askForNumber gen = do
   let (randNumber, newGen) = randomR (1, 10) gen :: (Int, StdGen)
   putStr "Which number in the range from 1 to 10 am I thinking of? \n"
   numberString <- getLine
-  when (not $ null numberString) $ do
+  unless (null numberString) $ do
     let number = read numberString
     if randNumber == number
       then putStrLn "You are correct!"
