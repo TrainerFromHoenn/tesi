@@ -1,0 +1,3 @@
+-- Riepilogo: I functors son roba che si può mappare su liste, alberi, Maybe s, e roba varia
+-- hanno un unico metodo typeclass: fmap
+-- fmap :: (a -> b) -> f a -> f b

@@ -31,24 +31,48 @@ data Label = A | B | C deriving (Show) -- La strada scelta è la A, B o C
 type Path = [(Label, Int)] -- Un percorso è una lista di strade con un nome e un peso
 
 optimalPath :: RoadSystem -> Path -- Ora la dichiarazione è easy
+optimalPath roadSystem =
+  let (bestAPath, bestBPath) = foldl roadStep ([], []) roadSystem -- si fa un foldl su tutto il sistema stradale
+   in if sum (map snd bestAPath) <= sum (map snd bestBPath) -- guardiamo quali dei due è meno costoso
+        then reverse bestAPath -- lo restituiamo inverso
+        else reverse bestBPath
+
 -- Funzione che scorre da sinistra a destra in una lista? FOLDL
 
 -- La prima cosa che si fa di solito è prendere una coppia di Path, guardare una nuova sezione
 -- e decidere la nuova coppia
 roadStep :: (Path, Path) -> Section -> (Path, Path)
 roadStep (pathA, pathB) (Section a b c) =
-  let priceA = sum $ map snd pathA
-      priceB = sum $ map snd pathB
-      forwardPriceToA = priceA + a
-      crossPriceToA = priceB + b + c
-      forwardPriceToB = priceB + b
+  let priceA = sum $ map snd pathA -- prima di tutto calcolo il prezzo di A e B totale finora
+      priceB = sum $ map snd pathB -- (se il pathA è (A,100), (C,20) otterrò 120
+      forwardPriceToA = priceA + a -- costo se andassi ad A dritto da A
+      crossPriceToA = priceB + b + c -- costo se andassi ad A facendo un cross da B
+      forwardPriceToB = priceB + b -- stessa cosa per b
       crossPriceToB = priceA + a + c
       newPathToA =
-        if forwardPriceToA <= crossPriceToA
+        if forwardPriceToA <= crossPriceToA -- se vince il forward faccio solo l'append del tratto A
           then (A, a) : pathA
-          else (C, c) : (B, b) : pathB
+          else (C, c) : (B, b) : pathB -- altrimenti faccio il cross
       newPathToB =
         if forwardPriceToB <= crossPriceToB
           then (B, b) : pathB
           else (C, c) : (A, a) : pathA
    in (newPathToA, newPathToB)
+
+-- Ora invece creiamo un modo per renderlo leggibile meglio il risultato
+groupsOf :: Int -> [a] -> [[a]] -- prende una lista e la splitta in due gruppi dello stesso size
+groupsOf 0 _ = undefined
+groupsOf _ [] = []
+groupsOf n xs = take n xs : groupsOf n (drop n xs) -- raggruppa le prime n, poi ripete sul resto della lista
+-- es. [1..10] -> [1,2,3] : grousOf [4,5,6,7,8,9,10]
+
+-- Finalmente si passa al main
+main = do
+  contents <- getContents
+  let threes = groupsOf 3 (map read $ lines contents) -- in questo modo posso creare una lista come heatrowLondon dall'input
+      roadSystem = map (\[a, b, c] -> Section a b c) threes -- Qua creo la struttura che serve al codice
+      path = optimalPath roadSystem
+      pathString = concatMap (show . fst) path -- concatMap è concat $ map
+      pathPrice = sum $ map snd path
+  putStrLn $ "The best path to take is: " ++ pathString
+  putStrLn $ "The price is: " ++ show pathPrice
