@@ -1,7 +1,14 @@
-1) Crea la cartella con il nome progetto
-    > mkdir nome 
-    > cd nome
-2) esegui cabal init per creare il progetto con cabal
-3) per eseguire il programma
-    cabal run 
-4) ricordati di mettere TUTTE le dipendenze nel file .cabal (per esempio gloss == 1.13.*, ghc)
+1) esegui "stack new my-project-name"
+    1.1) Se vuoi scegliere un template diverso usa stack templates e poi stack new my-project-name template-name
+2) Si builda con stack build
+    2.1) Probabilmente ti chiederà la versione di GHC appropriata, si fa con stack setup
+3) aggiungi nel file package.yaml le dipendenze
+    3.1) es. dependencies:
+                - base >= 4.7 && < 5
+                - GLFW-b
+                - gloss
+                - gloss-rendering
+                - OpenGLRaw
+4) per risolvere le dipendenze fai stack build
+
+ 
