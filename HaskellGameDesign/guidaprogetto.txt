@@ -1,0 +1,7 @@
+1) Crea la cartella con il nome progetto
+    > mkdir nome 
+    > cd nome
+2) esegui cabal init per creare il progetto con cabal
+3) per eseguire il programma
+    cabal run 
+4) ricordati di mettere TUTTE le dipendenze nel file .cabal (per esempio gloss == 1.13.*, ghc)
