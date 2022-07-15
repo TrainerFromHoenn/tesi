@@ -11,4 +11,10 @@
                 - OpenGLRaw
 4) per risolvere le dipendenze fai stack build
 
+5) per Haskell-Language-Server, ricordati di aggiungere la linea 
+    system-ghc: true 
+    in fondo al file stack.yaml
+
+9) devi avere GHC 9.0.2 installato tramite ghcup
+
  

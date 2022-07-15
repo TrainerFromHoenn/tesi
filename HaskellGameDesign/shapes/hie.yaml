@@ -1,0 +1,13 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "shapes:lib"
+
+    - path: "./app/Main.hs"
+      component: "shapes:exe:shapes-exe"
+
+    - path: "./app/Paths_shapes.hs"
+      component: "shapes:exe:shapes-exe"
+
+    - path: "./test"
+      component: "shapes:test:shapes-test"
