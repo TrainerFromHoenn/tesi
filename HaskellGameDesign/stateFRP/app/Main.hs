@@ -175,6 +175,10 @@ gameOngoing gameOver pics = if gameOver then
   pics ++ [Color black $ translate (-100) 0 $ Scale 0.3 0.3 $ Text "Game Over"]
   else pics
 
+-- Se voglio però implementare più livelli del gioco, devo fare in modo che alcuni segnali a una certa vengano
+-- eliminati, in modo da creare da 0 un nuovo set di segnali per formare lo stato
+-- 2 segnali nuovi: - stato del livello
+--                  - dobbiamo procedere o no?
 
 
 
