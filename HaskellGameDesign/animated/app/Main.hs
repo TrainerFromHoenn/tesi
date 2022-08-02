@@ -17,14 +17,36 @@ import System.Exit ( exitSuccess )
 import Control.Concurrent (threadDelay)
 import Control.Monad (unless, join)
 import Control.Monad.Fix (fix)
+import Control.Applicative ((<*>), (<$>))
 import FRP.Elerea.Simple
 import System.Random
 
 type Pos = Point -- gloss Point type (Float, Float)
-newtype Player = Player {position :: Pos}
 data Monster = Monster Pos MonsterStatus deriving Show
-data MonsterStatus = Wander Direction Int | Hunting deriving Show
+data MonsterStatus = Wander Direction Int | Hunting Direction deriving Show
 data Direction = WalkUp | WalkDown | WalkLeft | WalkRight deriving (Show, Enum, Bounded)
+
+-- Voglio animare le texture, quindi creo un nuovo dato
+data TextureSet = TextureSet {
+  front :: Picture,
+  back :: Picture,
+  left :: Picture,
+  right :: Picture
+}
+
+data Textures = Textures {
+  background :: Picture,
+  player :: TextureSet,
+  monsterWalking :: TextureSet,
+  monsterHunting :: TextureSet,
+  youDied :: Picture
+}
+-- inoltre per dare indicazione al programma della direzione dei nostri personaggi, è necessario
+-- dare informazioni aggiuntive sul player
+data Player = Player {
+  position :: Pos,
+  dir :: Maybe Direction}
+              deriving Show
 
 width :: Int
 width = 640
@@ -32,7 +54,7 @@ height :: Int
 height = 480
 
 initialPlayer :: Player
-initialPlayer = Player (0,0)
+initialPlayer = Player (0,0) (Just WalkDown)
 playerSize :: Float
 playerSize = 20
 
@@ -52,6 +74,29 @@ instance Random Direction where
   random g = randomR (minBound, maxBound) g
 
 -- Consigliabile importare subito tutte le texture così da non sovraccaricare poi
+loadTextures :: IO Textures
+loadTextures = do
+  playerTextureSet <- TextureSet <$> loadBMP "image/knight-front.bmp"
+                                 <*> loadBMP "image/knight-back.bmp"
+                                 <*> loadBMP "image/knight-left.bmp"
+                                 <*> loadBMP "image/knight-right.bmp"
+  monsterWalkingSet <- TextureSet <$> loadBMP "image/monster-walking-front.bmp"
+                                  <*> loadBMP "image/monster-walking-back.bmp"
+                                  <*> loadBMP "image/monster-walking-left.bmp"
+                                  <*> loadBMP "image/monster-walking-right.bmp"
+                                  -- In questo caso solo left/right, si muove in diagonale!
+  monsterHuntingSet <- TextureSet <$> loadBMP "image/monster-hunting-left.bmp"
+                                  <*> loadBMP "image/monster-hunting-right.bmp"
+                                  <*> loadBMP "image/monster-hunting-left.bmp"
+                                  <*> loadBMP "image/monster-hunting-right.bmp"
+  backgroundTexture <- loadBMP "image/background-1.bmp"
+  gameOverTexture <- loadBMP "image/youdied.bmp"
+  return Textures { background = backgroundTexture,
+                    player = playerTextureSet,
+                    monsterWalking = monsterWalkingSet,
+                    monsterHunting = monsterHuntingSet,
+                    youDied = gameOverTexture }
+
 main :: IO ()
 main = do
   -- solita preparazione dello stato e dei tasti
@@ -59,11 +104,7 @@ main = do
   randomGenerator <- newStdGen
   glossState <- initState
   -- caricamento textures
-  playerTexture <- loadBMP "image/tartaaa.bmp"
-  backgroundTexture <- loadBMP "image/background-1.bmp"
-  monsterWalkingTexture <- loadBMP "image/monster-walking.bmp"
-  monsterHuntingTexture <- loadBMP "image/monster-hunting.bmp"
-  let textures = [playerTexture, monsterWalkingTexture, monsterHuntingTexture, backgroundTexture]
+  textures <- loadTextures
   -- creo la finestra
   withWindow width height "Game-Demo" $ \win -> do
             network <- start $ do
@@ -108,11 +149,11 @@ movePlayer increment direction False player
 
 
 move :: (Bool, Bool, Bool, Bool) -> Player -> Float -> Player
-move (True, _, _, _) (Player (xpos, ypos)) increment = Player (xpos - increment, ypos)
-move (_, True, _, _) (Player (xpos, ypos)) increment = Player (xpos + increment, ypos)
-move (_, _, True, _) (Player (xpos, ypos)) increment = Player (xpos, ypos + increment)
-move (_, _, _, True) (Player (xpos, ypos)) increment = Player (xpos, ypos - increment)
-move (False, False, False, False) (Player (xpos, ypos)) _ = Player (xpos, ypos)
+move (True, _, _, _) (Player (xpos, ypos) _) increment = Player (xpos - increment, ypos) $ Just WalkLeft
+move (_, True, _, _) (Player (xpos, ypos) _) increment = Player (xpos + increment, ypos) $ Just WalkRight
+move (_, _, True, _) (Player (xpos, ypos) _) increment = Player (xpos, ypos + increment) $ Just WalkUp
+move (_, _, _, True) (Player (xpos, ypos)_) increment = Player (xpos, ypos - increment) $ Just WalkDown
+move (False, False, False, False) (Player (xpos, ypos) _ ) _ = Player (xpos, ypos) Nothing
 
 outsideOfLimits :: (Ord a, Fractional a) => (a, a) -> a -> Bool
 outsideOfLimits (xmon, ymon) size = xmon > fromIntegral width/2 - size/2 ||
@@ -133,16 +174,23 @@ close :: Player -> Monster -> Bool
 close player monster = distance player monster < huntingDist^2
 
 distance :: Player -> Monster -> Float
-distance (Player (xpos, ypos)) (Monster (xmon, ymon)_) = (xpos - xmon)^2 + (ypos - ymon)^2
+distance (Player (xpos, ypos) _) (Monster (xmon, ymon)_) = (xpos - xmon)^2 + (ypos - ymon)^2
 
 hunt :: Player -> Monster -> Monster
-hunt (Player(xpos, ypos))(Monster(xmon, ymon) _) =
-  Monster (xmon + signum (xpos-xmon) * monsterSpeed, ymon + signum (ypos-ymon) * monsterSpeed) Hunting
+hunt (Player(xpos, ypos) _ )(Monster(xmon, ymon) _) =
+  Monster (xmon + signum (xpos-xmon) * monsterSpeed, ymon + signum (ypos-ymon) * monsterSpeed)
+          (Hunting $ huntingDirection (signum (xpos - xmon)) (signum (ypos - ymon)))
+
+huntingDirection (-1) (-1) = WalkLeft
+huntingDirection (-1) 1 = WalkLeft
+huntingDirection 1 (-1) = WalkRight
+huntingDirection 1 1 = WalkRight
+huntingDirection _ _ = WalkRight
 
 wander :: Direction -> Monster -> Monster
 wander r (Monster(xmon, ymon) (Wander _ 0)) =
   Monster (xmon,ymon) (Wander r wanderDist)
-wander r (Monster (xmon, ymon) Hunting) =
+wander r (Monster (xmon, ymon) (Hunting _)) =
   Monster (xmon,ymon) (Wander r wanderDist)
 -- Continua dritto
 wander _ (Monster (xmon, ymon) (Wander direction n)) = do
@@ -167,22 +215,43 @@ stepInCurrentDirection WalkLeft (xpos, ypos) speed = (xpos - speed, ypos)
 stepInCurrentDirection WalkRight (xpos, ypos) speed = (xpos + speed, ypos)
 
 -- FUNZIONI DI DISEGNO
+renderFrame :: Window -> State -> Textures -> Player -> Monster -> Bool -> IO()
+renderFrame window glossState textures
+  (Player (xpos, ypos) playerDir) (Monster (xmon, ymon) status) gameOver = do
+    displayPicture (width, height) black glossState 1.0 $ Pictures $ gameOnGoing gameOver
+     [background textures,
+      renderPlayer xpos ypos playerDir (player textures),
+      renderMonster status xmon ymon (monsterWalking textures) (monsterHunting textures),
+      youDied textures]
+    swapBuffers window
 
-renderFrame window glossState [playerTexture, monsterWalkingTexture, monsterHuntingTexture, backgroundTexture]
-  (Player (xpos, ypos)) (Monster (xmon, ymon) status) gameOver = do
-    displayPicture (width, height) black glossState 1.0 $ Pictures $ gameOnGoing gameOver [backgroundTexture, 
-      renderPlayer xpos ypos playerTexture,
-      renderMonster status xmon ymon (monsterWalkingTexture, monsterHuntingTexture)]
+renderPlayer :: Float -> Float -> Maybe Direction -> TextureSet -> Picture
+renderPlayer xpos ypos (Just WalkUp) textureSet =
+  translate xpos ypos $ back textureSet
+renderPlayer xpos ypos (Just WalkDown) textureSet =
+  translate xpos ypos $ front textureSet
+renderPlayer xpos ypos (Just WalkRight) textureSet =
+  translate xpos ypos $ right textureSet
+renderPlayer xpos ypos (Just WalkLeft) textureSet =
+  translate xpos ypos $ left textureSet
+renderPlayer xpos ypos Nothing textureSet =
+  translate xpos ypos $ front textureSet
 
-renderPlayer :: Float -> Float -> Picture -> Picture
-renderPlayer = translate
-
-renderMonster :: MonsterStatus -> Float -> Float -> (Picture, Picture) -> Picture
-renderMonster Hunting xpos ypos (_, monsterHuntingTexture) =
-  translate xpos ypos monsterHuntingTexture
-renderMonster (Wander _ _) xpos ypos (monsterWalkingTexture, _) =
-  translate xpos ypos monsterWalkingTexture
+renderMonster :: MonsterStatus -> Float -> Float -> TextureSet -> TextureSet -> Picture
+renderMonster (Hunting WalkLeft) xpos ypos _ textureSet =
+  translate xpos ypos $ left textureSet
+renderMonster (Hunting WalkRight) xpos ypos _ textureSet =
+  translate xpos ypos $ right textureSet
+renderMonster (Wander WalkUp _) xpos ypos textureSet _ =
+  translate xpos ypos $ back textureSet
+renderMonster (Wander WalkDown _) xpos ypos textureSet _ =
+  translate xpos ypos $ front textureSet
+renderMonster (Wander WalkLeft _) xpos ypos textureSet _ =
+  translate xpos ypos $ left textureSet
+renderMonster (Wander WalkRight _) xpos ypos textureSet _ =
+  translate xpos ypos $ right textureSet
 
 gameOnGoing :: Bool -> [Picture] -> [Picture]
-gameOnGoing gameOver pics = if gameOver then pics ++ [Color black $ translate (-100) 0 $ Scale 0.3 0.3 $ Text "Game Over"]
-  else pics
+gameOnGoing gameOver pics =
+  if gameOver then Prelude.init pics ++ [last pics]
+  else Prelude.init pics
